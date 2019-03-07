@@ -1,0 +1,93 @@
+
+** title: "Practical ML" **
+** author: "Sarani" **
+** date: "March 7, 2019" **
+** output: html_document **
+
+** Coursera Final Assignment **
+
+
+** Library and Data Access **
+
+```{r}
+
+library(knitr)
+library(caret)
+library(rpart)
+#install.packages("rpart.plot")
+library(rpart.plot)
+#install.packages("rattle")
+library(rattle)
+#install.packages("randomForest")
+library(randomForest)
+#install.packages("e1071")
+library(e1071)
+set.seed(234)
+
+
+Trainlink <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+Testlink  <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+
+
+df_training <- read.csv(url(Trainlink))
+df_testing  <- read.csv(url(Testlink))
+```
+
+** Data Treatment **
+
+```{r}
+# create a partition with the training dataset 
+inTrain  <- createDataPartition(df_training$classe, p=0.7, list=FALSE)
+TrainSet <- df_training[inTrain, ]
+TestSet  <- df_training[-inTrain, ]
+
+
+# Check number of variables and their names
+dim(TrainSet)
+colnames(TrainSet)
+
+# remove variables with Nearly Zero Variance
+NZV <- nearZeroVar(TrainSet)
+TrainSet <- TrainSet[, -NZV]
+TestSet  <- TestSet[, -NZV]
+
+
+# remove variables that have mostly missing values (90%)
+MissRemove    <- sapply(TrainSet, function(x) mean(is.na(x))) > 0.90
+TrainSet <- TrainSet[, MissRemove==FALSE]
+TestSet  <- TestSet[, MissRemove==FALSE]
+
+# Check remaining variables
+dim(TrainSet)
+colnames(TrainSet)
+
+# remove other unnecessary variables
+TrainSet <- TrainSet[, -(1:6)]
+TestSet  <- TestSet[, -(1:6)]
+
+# Check the final number of variables
+dim(TrainSet)
+colnames(TrainSet)
+```
+
+** Model Fit and Prediction **
+
+```{r}
+# model fit
+set.seed(234)
+RF <- trainControl(method="cv", number=5, verboseIter=FALSE)
+fitRF <- train(classe ~ ., data=TrainSet, method="rf",
+                          trControl=RF)
+fitRF$finalModel
+
+# prediction on Test dataset
+predictRF <- predict(fitRF, newdata=TestSet)
+confRF <- confusionMatrix(predictRF, TestSet$classe)
+confRF
+
+# Accuracy is high 0.99 which is good and OOB error is also low 0.64%
+
+# Final prediction
+pred_test <- predict(fitRF, newdata=df_testing)
+pred_test
